@@ -6,7 +6,7 @@
 #include <WiFiClient.h>
 #include <BlynkSimpleEsp32.h>
 
-#define timeSeconds 5
+#define timeSeconds 10
 
 //Chave de autenticação do Blynk com o celular
 char auth[] = "HKWs6TsHt-uwIQhjGoDu0w9gHiTe18Ln";
@@ -33,12 +33,12 @@ const int ledChannel3 = 2;
 const int freq = 5000;
 const int resolution = 8;
 
-int r = 255;
-int g = 255;
-int b = 255;
+float r = 255;
+float g = 255;
+float b = 255;
 
 int acionado = 0;
-
+int programado = 0;
 int luzAmbiente = 0;
 
 BLYNK_WRITE(V0){
@@ -46,7 +46,7 @@ BLYNK_WRITE(V0){
   g = param[1].asInt();
   b = param[2].asInt();
 
-  if (acionado == 1){
+  if (acionado == 1 or programado == 1){
     ledcWrite(ledChannel1, r);
     ledcWrite(ledChannel2, g);
     ledcWrite(ledChannel3, b);
@@ -69,9 +69,38 @@ BLYNK_WRITE(V1){
   }    
 }
 
+BLYNK_WRITE(V2){
+  programado = param.asInt();
+  if(programado == 0){
+    ledcWrite(ledChannel1, 0);
+    ledcWrite(ledChannel2, 0);
+    ledcWrite(ledChannel3, 0);
+  }
+
+  if(programado == 1){
+    ledcWrite(ledChannel1, r);
+    ledcWrite(ledChannel2, g);
+    ledcWrite(ledChannel3, b);
+  }
+}
+
+BLYNK_WRITE(V3){
+  float intensidade = param.asInt();
+  float rN = (r/100) * intensidade;
+  float gN = (g/100) * intensidade;
+  float bN = (b/100) * intensidade;
+  
+  if (acionado == 1 or programado == 1){
+    ledcWrite(ledChannel1, rN);
+    ledcWrite(ledChannel2, gN);
+    ledcWrite(ledChannel3, bN);
+  }
+  Serial.println(rN);
+}
+
 void detectaLuz(){
   luzAmbiente = analogRead(portaLDR);
-  //delay(10);
+  delay(10);
   //Serial.println("Leitura do Sensor de LDR:");
   //Serial.println(luzAmbiente);
 }
@@ -79,10 +108,10 @@ void detectaLuz(){
 void detectaMovimento() {
   if (luzAmbiente < 1000){
     acionado = 1;
-    ledcWrite(ledChannel1, 255);
-    ledcWrite(ledChannel2, 255);
-    ledcWrite(ledChannel3, 255);
-    Serial.println("MOVIMENTOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
+    ledcWrite(ledChannel1, r);
+    ledcWrite(ledChannel2, g);
+    ledcWrite(ledChannel3, b);
+    Serial.println("Movimento detectado.");
     startTimer = true;
     lastTrigger = millis();
   }    
@@ -95,8 +124,6 @@ void setup()
   Blynk.begin(auth, ssid, pass);
   pinMode(sensorMovimento, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(sensorMovimento), detectaMovimento, RISING);
-  
-  
   
   ledcSetup(ledChannel1, freq, resolution);
   ledcSetup(ledChannel2, freq, resolution);
